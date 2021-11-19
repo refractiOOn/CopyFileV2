@@ -1,13 +1,12 @@
 #include <windows.h>
-#include <stdio.h>
 #include <string>
-#include <algorithm>
 
 void main()
 {
     HANDLE secretFile;
     HANDLE protectedFile;
     DWORD  dwBytesWritten, dwPos;
+    BOOL fReadFile;
 
     // Open the existing file.
 
@@ -22,7 +21,7 @@ void main()
 
     if (secretFile == INVALID_HANDLE_VALUE)
     {
-        printf("Could not open One.txt.");
+        printf("Could not open secret.txt.");
         return;
     }
 
@@ -40,26 +39,33 @@ void main()
 
     if (protectedFile == INVALID_HANDLE_VALUE)
     {
-        printf("Could not open Two.txt.");
+        printf("Could not create protected.txt.");
         return;
     }
 
     const size_t bufSize = 4096;
     DWORD  dwBytesRead = 0;
     std::string buf(bufSize, '\0');
-    ReadFile(secretFile, &buf[0], buf.size(), &dwBytesRead, NULL);
+    fReadFile = ReadFile(secretFile, &buf[0], buf.size(), &dwBytesRead, NULL);
+    if (!fReadFile)
+    {
+        printf("Could not read the file");
+    }
     buf.resize(dwBytesRead);
     const std::string searchString = "password: "; // 10
     size_t startOfPassword = 0;
     size_t curPos = 0;
     // _password: ***** Some text. And other password: 77777 other Text
-    while (startOfPassword != std::string::npos) {
+    while (startOfPassword != std::string::npos)
+    {
         startOfPassword = buf.find(searchString, curPos); // 1
-        if (startOfPassword != std::string::npos) {
+        if (startOfPassword != std::string::npos)
+        {
             startOfPassword += searchString.size(); // startOfPassword == 11
             curPos += startOfPassword; // 11
             size_t endOfPassword = buf.find(" ", startOfPassword);//16
-            if (endOfPassword != std::string::npos) {
+            if (endOfPassword != std::string::npos)
+            {
                 const size_t passwordLength = endOfPassword - startOfPassword; // 5
                 buf.replace(startOfPassword, passwordLength, passwordLength, '*');
             }
