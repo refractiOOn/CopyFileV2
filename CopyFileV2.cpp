@@ -1,20 +1,74 @@
-// CopyFileV2.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
+#include <windows.h>
+#include <stdio.h>
+#include <string>
+#include <algorithm>
 
-#include <iostream>
-
-int main()
+void main()
 {
-    std::cout << "Hello World!\n";
+    HANDLE secretFile;
+    HANDLE protectedFile;
+    DWORD  dwBytesWritten, dwPos;
+
+    // Open the existing file.
+
+    secretFile = CreateFileA(
+        "C:/Users/sotni/source/repos/CopyFileV2/secret.txt",
+        GENERIC_READ,             // open for reading
+        0,                        // do not share
+        NULL,                     // no security
+        OPEN_EXISTING,            // existing file only
+        FILE_ATTRIBUTE_NORMAL,    // normal file
+        NULL);                    // no attr. template
+
+    if (secretFile == INVALID_HANDLE_VALUE)
+    {
+        printf("Could not open One.txt.");
+        return;
+    }
+
+    // Open the existing file, or if the file does not exist,
+    // create a new file.
+
+    protectedFile = CreateFileA(
+        "C:/Users/sotni/source/repos/CopyFileV2/protected.txt", // open Two.txt
+        GENERIC_WRITE,            // open for writing
+        0,                        // allow multiple readers
+        NULL,                     // no security
+        CREATE_NEW,               // open or create
+        FILE_ATTRIBUTE_NORMAL,    // normal file
+        NULL);                    // no attr. template
+
+    if (protectedFile == INVALID_HANDLE_VALUE)
+    {
+        printf("Could not open Two.txt.");
+        return;
+    }
+
+    const size_t bufSize = 4096;
+    DWORD  dwBytesRead = 0;
+    std::string buf(bufSize, '\0');
+    ReadFile(secretFile, &buf[0], buf.size(), &dwBytesRead, NULL);
+    buf.resize(dwBytesRead);
+    const std::string searchString = "password: "; // 10
+    size_t startOfPassword = 0;
+    size_t curPos = 0;
+    // _password: ***** Some text. And other password: 77777 other Text
+    while (startOfPassword != std::string::npos) {
+        startOfPassword = buf.find(searchString, curPos); // 1
+        if (startOfPassword != std::string::npos) {
+            startOfPassword += searchString.size(); // startOfPassword == 11
+            curPos += startOfPassword; // 11
+            size_t endOfPassword = buf.find(" ", startOfPassword);//16
+            if (endOfPassword != std::string::npos) {
+                const size_t passwordLength = endOfPassword - startOfPassword; // 5
+                buf.replace(startOfPassword, passwordLength, passwordLength, '*');
+            }
+        }
+    }
+    WriteFile(protectedFile, buf.data(), dwBytesRead, &dwBytesWritten, NULL);
+
+    // Close both files.
+
+    CloseHandle(secretFile);
+    CloseHandle(protectedFile);
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
