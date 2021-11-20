@@ -5,7 +5,7 @@ void main()
 {
     HANDLE secretFile;
     HANDLE protectedFile;
-    DWORD  dwBytesWritten, dwPos;
+    DWORD  dwBytesWritten, dwPos, dwBytesRead = 0;
     BOOL fReadFile;
 
     // Open the existing file.
@@ -42,36 +42,60 @@ void main()
         printf("Could not create protected.txt.");
         return;
     }
-
-    const size_t bufSize = 4096;
-    DWORD  dwBytesRead = 0;
-    std::string buf(bufSize, '\0');
-    fReadFile = ReadFile(secretFile, &buf[0], buf.size(), &dwBytesRead, NULL);
-    if (!fReadFile)
+    /*if (!fReadFile)
     {
         printf("Could not read the file");
-    }
-    buf.resize(dwBytesRead);
+    }*/
+
+    const size_t bufSize = 4096;
+    std::string buf(bufSize, '\0');
     const std::string searchString = "password: "; // 10
-    size_t startOfPassword = 0;
-    size_t curPos = 0;
-    // _password: ***** Some text. And other password: 77777 other Text
-    while (startOfPassword != std::string::npos)
+    while (ReadFile(secretFile, &buf[0], buf.size(), &dwBytesRead, NULL) && dwBytesRead > 0)
     {
-        startOfPassword = buf.find(searchString, curPos); // 1
-        if (startOfPassword != std::string::npos)
+        buf.resize(dwBytesRead);
+        dwPos = SetFilePointer(protectedFile, 0, NULL, FILE_END);
+        LockFile(protectedFile, dwPos, 0, dwBytesRead, 0);
+        size_t startOfPassword = 0;
+        size_t curPos = 0;
+        // _password: ***** Some text. And other password: 77777 other Text
+        while (startOfPassword != std::string::npos)
         {
-            startOfPassword += searchString.size(); // startOfPassword == 11
-            curPos += startOfPassword; // 11
-            size_t endOfPassword = buf.find(" ", startOfPassword);//16
-            if (endOfPassword != std::string::npos)
+            startOfPassword = buf.find(searchString, curPos); // 1
+            if (startOfPassword != std::string::npos)
             {
-                const size_t passwordLength = endOfPassword - startOfPassword; // 5
-                buf.replace(startOfPassword, passwordLength, passwordLength, '*');
+                startOfPassword += searchString.size(); // startOfPassword == 11
+                curPos += startOfPassword; // 11
+                size_t endOfPassword = buf.find(" ", startOfPassword);//16
+                if (endOfPassword != std::string::npos)
+                {
+                    const size_t passwordLength = endOfPassword - startOfPassword; // 5
+                    buf.replace(startOfPassword, passwordLength, passwordLength, '*');
+                }
             }
         }
+        WriteFile(protectedFile, buf.data(), dwBytesRead, &dwBytesWritten, NULL);
+        UnlockFile(protectedFile, dwPos, 0, dwBytesRead, 0);
     }
-    WriteFile(protectedFile, buf.data(), dwBytesRead, &dwBytesWritten, NULL);
+
+    /*size_t startOfPassword = 0;
+    size_t curPos = 0;*/
+    // _password: ***** Some text. And other password: 77777 other Text
+    //while (startOfPassword != std::string::npos)
+    //{
+    //    startOfPassword = buf.find(searchString, curPos); // 1
+    //    if (startOfPassword != std::string::npos)
+    //    {
+    //        startOfPassword += searchString.size(); // startOfPassword == 11
+    //        curPos += startOfPassword; // 11
+    //        size_t endOfPassword = buf.find(" ", startOfPassword);//16
+    //        if (endOfPassword != std::string::npos)
+    //        {
+    //            const size_t passwordLength = endOfPassword - startOfPassword; // 5
+    //            buf.replace(startOfPassword, passwordLength, passwordLength, '*');
+    //        }
+    //    }
+    //}
+    //WriteFile(protectedFile, buf.data(), dwBytesRead, &dwBytesWritten, NULL);
 
     // Close both files.
 
